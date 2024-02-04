@@ -1,51 +1,91 @@
 package ru.sberunivercity.telegramdrawingbot.bot
 
-import jakarta.annotation.PostConstruct
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.stereotype.Component
-import org.springframework.stereotype.Service
+import jdk.javadoc.internal.tool.Main.execute
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
-
-@Service
-class TelegramBotDrawing: TelegramLongPollingBot() {
-
-    @Value("\${telegram.botName}")
-    private lateinit var botName: String
-
-    @Value("\${telegram.token}")
-    private lateinit var token: String
-    override fun getBotUsername(): String = botName
-    override fun getBotToken(): String = token
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import java.sql.DriverManager
 
 
-    @PostConstruct
-    fun initBot() {
-        val botApi = TelegramBotsApi(DefaultBotSession::class.java)
-        botApi.registerBot(this)
+class TelegramBotDrawing : TelegramLongPollingBot() {
+
+    override fun getBotUsername(): String {
+        return "DrawingKotlinBot"
     }
+
+    override fun getBotToken(): String {
+        return "6716074031:AAEgZdJxFQlemtVbzxAI667r_rerWfzge3Q"
+    }
+
 
     override fun onUpdateReceived(update: Update) {
-        if (update.hasMessage()){
+        if (update.hasMessage() && update.message.hasText()) {
             val message = update.message
             val chatId = message.chatId
-            val responseText = if (message.hasText()) {
-                val messageText = message.text
-                when {
-                    messageText == "/start" -> "Добро пожаловать!"
-                    else -> "Вы написали: *$messageText*"}
-                } else {
-                    "Я понимаю только текст"
+            val text = message.text
+            if (text.startsWith("/")) {
+                if (text == "/start") {
+                    sendMessage(
+                        chatId,
+                        "Привет! Я бот для проведения розыгрышей. Для участия, отправь свое имя и фамилию."
+                    )
                 }
-                sendNotification(chatId, responseText)
+            } else {
+                addToDatabase(chatId, text)
+                sendMessage(chatId, "Вы успешно зарегистрированы для участия в розыгрыше!")
             }
         }
-        private fun sendNotification(chatId: Long, responseText: String){
-            val responseMessage = SendMessage(chatId.toString(), responseText)
-            responseMessage.enableMarkdownV2(true)
-            execute(responseMessage)
-        }
     }
+}
+
+fun sendMessage(chatId: Long, text: String) {
+    val message = SendMessage()
+    message.chatId = chatId.toString()
+    message.text = text
+    try {
+        execute(message)
+    } catch (e: TelegramApiException) {
+        e.printStackTrace()
+    }
+}
+
+fun addToDatabase(chatId: Long, name: String) {
+    val connection =
+        DriverManager.getConnection("jdbc:postgresqlNO LINKSlocalhost:5432/lottery_bot", "username", "password")
+    val statement = connection.prepareStatement("INSERT INTO participants (chat_id, name) VALUES (?, ?)")
+    statement.setLong(1, chatId)
+    statement.setString(2, name)
+    statement.executeUpdate()
+    connection.close()
+}
+fun runLottery() {
+    val connection = DriverManager.getConnection("jdbc:postgresqlNO LINKSlocalhost:5432/lottery_bot", "username", "password")
+    val statement = connection.prepareStatement("SELECT chat_id FROM participants")
+    val resultSet = statement.executeQuery()
+    val chatIds = mutableListOf<Long>()
+    while (resultSet.next()) {
+        chatIds.add(resultSet.getLong("chat_id"))
+    }
+    connection.close()
+
+    val winnerChatId = chatIds.random()
+    sendMessage(winnerChatId, "Поздравляем! Вы стали победителем розыгрыша!")
+}
+fun main() {
+    val botsApi = TelegramBotsApi()
+    botsApi.registerBot(TelegramBotDrawing())
+
+    Thread.sleep(10 * 60 * 1000)
+    runLottery()
+}
+
+override fun onUpdateReceived(update: Update) {
+
+    if (update.hasMessage() && update.message.hasText()) {
+        val message = update.message
+        val chatId = message.chatId
+        val text = message.text
+    }
+}
