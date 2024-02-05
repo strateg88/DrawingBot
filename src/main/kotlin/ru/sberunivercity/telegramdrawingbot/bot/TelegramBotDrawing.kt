@@ -1,11 +1,11 @@
 package ru.sberunivercity.telegramdrawingbot.bot
 
-import jdk.javadoc.internal.tool.Main.execute
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import java.sql.DriverManager
 
 
@@ -38,54 +38,59 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
             }
         }
     }
-}
 
-fun sendMessage(chatId: Long, text: String) {
-    val message = SendMessage()
-    message.chatId = chatId.toString()
-    message.text = text
-    try {
-        execute(message)
-    } catch (e: TelegramApiException) {
-        e.printStackTrace()
+    fun sendMessage(chatId: Long, text: String) {
+        val message = SendMessage()
+        message.chatId = chatId.toString()
+        message.text = text
+        try {
+            execute(message)
+        } catch (e: TelegramApiException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun runLottery() {
+        val connection = DriverManager.getConnection("jdbc:localhost:5432/lottery_bot", "postgres", "q12345678")
+        val statement = connection.prepareStatement("SELECT chat_id FROM participant")
+        val resultSet = statement.executeQuery()
+        val chatIds = mutableListOf<Long>()
+        while (resultSet.next()) {
+            chatIds.add(resultSet.getLong("chat_id"))
+        }
+        connection.close()
+
+        val winnerChatId = chatIds.random()
+        sendMessage(winnerChatId, "Поздравляем! Вы стали победителем розыгрыша!")
     }
 }
 
+
+
 fun addToDatabase(chatId: Long, name: String) {
     val connection =
-        DriverManager.getConnection("jdbc:postgresqlNO LINKSlocalhost:5432/lottery_bot", "username", "password")
-    val statement = connection.prepareStatement("INSERT INTO participants (chat_id, name) VALUES (?, ?)")
+        DriverManager.getConnection("jdbc:localhost:5432/lottery_bot", "postgres", "q12345678")
+    val statement = connection.prepareStatement("INSERT INTO participant (chat_id, name) VALUES (?, ?)")
     statement.setLong(1, chatId)
     statement.setString(2, name)
     statement.executeUpdate()
     connection.close()
 }
-fun runLottery() {
-    val connection = DriverManager.getConnection("jdbc:postgresqlNO LINKSlocalhost:5432/lottery_bot", "username", "password")
-    val statement = connection.prepareStatement("SELECT chat_id FROM participants")
-    val resultSet = statement.executeQuery()
-    val chatIds = mutableListOf<Long>()
-    while (resultSet.next()) {
-        chatIds.add(resultSet.getLong("chat_id"))
-    }
-    connection.close()
-
-    val winnerChatId = chatIds.random()
-    sendMessage(winnerChatId, "Поздравляем! Вы стали победителем розыгрыша!")
-}
 fun main() {
-    val botsApi = TelegramBotsApi()
-    botsApi.registerBot(TelegramBotDrawing())
+    val botsApi = TelegramBotsApi(DefaultBotSession::class.java)
+    val telegramBotDrawing = TelegramBotDrawing()
+    botsApi.registerBot(telegramBotDrawing)
+    println("Started.")
 
     Thread.sleep(10 * 60 * 1000)
-    runLottery()
+    telegramBotDrawing.runLottery()
 }
 
-override fun onUpdateReceived(update: Update) {
-
-    if (update.hasMessage() && update.message.hasText()) {
-        val message = update.message
-        val chatId = message.chatId
-        val text = message.text
-    }
-}
+//override fun onUpdateReceived(update: Update) {
+//
+//    if (update.hasMessage() && update.message.hasText()) {
+//        val message = update.message
+//        val chatId = message.chatId
+//        val text = message.text
+//    }
+//}
