@@ -33,6 +33,10 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
                     )
                 }
             } else {
+                // Мой id = 245599936L - я админ
+                if (245599936L == chatId) {
+                    //тут отправлять админскую клавиатуру
+                }
                 addToDatabase(chatId, text)
                 sendMessage(chatId, "Вы успешно зарегистрированы для участия в розыгрыше!")
             }
@@ -51,7 +55,7 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
     }
 
     fun runLottery() {
-        val connection = DriverManager.getConnection("jdbc:localhost:5432/lottery_bot", "postgres", "q12345678")
+        val connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "q12345678")
         val statement = connection.prepareStatement("SELECT chat_id FROM participant")
         val resultSet = statement.executeQuery()
         val chatIds = mutableListOf<Long>()
@@ -69,7 +73,7 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
 
 fun addToDatabase(chatId: Long, name: String) {
     val connection =
-        DriverManager.getConnection("jdbc:localhost:5432/lottery_bot", "postgres", "q12345678")
+        DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "q12345678")
     val statement = connection.prepareStatement("INSERT INTO participant (chat_id, name) VALUES (?, ?)")
     statement.setLong(1, chatId)
     statement.setString(2, name)

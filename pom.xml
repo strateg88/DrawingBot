@@ -16,6 +16,7 @@
 	<properties>
 		<java.version>17</java.version>
 		<kotlin.version>1.9.22</kotlin.version>
+		<start-class>ru.sberunivercity.telegramdrawingbot.TelegramDrawingBotApplication</start-class>
 	</properties>
 
 	<dependencies>
