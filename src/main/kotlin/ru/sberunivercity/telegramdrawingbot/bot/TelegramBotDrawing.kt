@@ -13,6 +13,9 @@ import java.sql.DriverManager
 
 class TelegramBotDrawing : TelegramLongPollingBot() {
 
+    var countOfWinners = 1L;
+
+
     override fun getBotUsername(): String {
         return "DrawingKotlinBot"
     }
@@ -27,7 +30,9 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
             val message = update.message
             val chatId = message.chatId
             val text = message.text
-            println("Пользователь $chatId написал: $text")
+
+            val countPrefix = "Количество победителей ";
+            println("Пользователь" + chatId +  "написал: " + text)
             if (text.startsWith("/")) {
                 if (text == "/start") {
                     sendMessage(
@@ -36,8 +41,16 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
                     )
                 }
             } else {
+                if (245599936L == chatId && message.text.startsWith(countPrefix)) {
+                    println("admin has changed count of winners")
+                    countOfWinners = message.text.substring(23).toLong();
+                }
+                if (245599936L == chatId && "Розыгрыш" == message.text) {
+                    println("admin has started lottery")
+                    runLottery();
+                }
                 // Мой id = 245599936L - я админ
-                if (245599936L == chatId) {
+                if (245599936L == chatId || 366405114L == chatId) {
                     //тут отправлять админскую клавиатуру
                     val markupInline = InlineKeyboardMarkup()
                     // добавляем встроенную клавиатуру в сообщение
@@ -46,13 +59,14 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
 
                     val inlineKeyboardButton1 = InlineKeyboardButton()
                     inlineKeyboardButton1.text = "Розыграть!";
-                    inlineKeyboardButton1.callbackData = "CB Розыграть!";
-                    rowInline1.add(inlineKeyboardButton1);
+                    inlineKeyboardButton1.callbackData = "/todraw";
+                    rowInline1.add(inlineKeyboardButton1)
                     rowsInline.add(rowInline1)
 
                     markupInline.keyboard = rowsInline
                     message.replyMarkup = markupInline
                     sendMessage(chatId, markupInline)
+
                 } else {
                     try {
                         addToDatabase(chatId, text)
@@ -65,6 +79,12 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
                     }
                     sendMessage(chatId, "Вы успешно зарегистрированы для участия в розыгрыше!")
                 }
+            }
+        } else if (update.hasCallbackQuery()) {
+            if ("/todraw".equals(update.callbackQuery.data)) {
+                //Тут запускаем розыгрыш
+                println("admin has started lottery")
+                runLottery();
             }
         }
     }
@@ -102,8 +122,11 @@ class TelegramBotDrawing : TelegramLongPollingBot() {
         }
         connection.close()
 
-        val winnerChatId = chatIds.random()
-        sendMessage(winnerChatId, "Поздравляем! Вы стали победителем розыгрыша!")
+//        val winnerChatId = chatIds.random()
+        chatIds
+            .stream()
+            .limit(countOfWinners)
+            .forEach{ chatId -> sendMessage(chatId, "Поздравляем! Вы стали победителем розыгрыша!")}
     }
 }
 
@@ -124,8 +147,8 @@ fun main() {
     botsApi.registerBot(telegramBotDrawing)
     println("Started.")
 
-    Thread.sleep(10 * 60 * 1000)
-    telegramBotDrawing.runLottery()
+//    Thread.sleep(10 * 60 * 1000)
+//    telegramBotDrawing.runLottery()
 }
 
 //override fun onUpdateReceived(update: Update) {
